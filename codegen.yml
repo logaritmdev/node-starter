@@ -1,0 +1,7 @@
+schema: 'src/**/*.graphql'
+overwrite: true
+generates:
+  src/graphql/types/index.ts:
+    plugins:
+      - "typescript-common"
+      - "typescript-server"

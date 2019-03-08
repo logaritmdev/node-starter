@@ -1,0 +1,55 @@
+version: '3'
+services:
+
+  nginx:
+    restart: always
+    image: nginx:1.13.3
+    volumes:
+      - .:/app
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./cert:/cert
+    ports:
+      - 80:80
+      - 443:443
+    logging:
+      options:
+        max-size: 150m
+    depends_on:
+      - node1
+
+  node1:
+    restart: always
+    image: node:10.15.2
+    volumes:
+      - .:/app
+      - ./log:/tmp/logs
+      - ./supervisord.conf:/etc/supervisord.conf
+    working_dir: /app
+    command: sh -c 'apt-get update && apt-get install -yq supervisor; npm install ; /usr/bin/supervisord -c /etc/supervisord.conf'
+    ports:
+      - 3000:3000
+    logging:
+      options:
+        max-size: 150m
+    depends_on:
+      - mysql
+
+  mysql:
+    restart: always
+    image: mysql:5.7.19
+    ports:
+      - 3306:3306
+    volumes:
+      - ./data:/var/lib/mysql
+      - .:/host
+    environment:
+      MYSQL_ROOT_PASSWORD: CHANGE_ME
+      MYSQL_DATABASE: database
+
+  phpmyadmin:
+    restart: always
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - 6085:80
+    environment:
+      PMA_HOST: mysql

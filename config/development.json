@@ -1,0 +1,27 @@
+{
+	"jwt": {
+		"secret": "REPLACEME"
+	},
+	"log": {
+		"path": "/tmp/logs",
+		"level": "info"
+	},
+	"database": {
+		"host": "mysql",
+		"name": "database",
+		"user": "root",
+		"pass": "123"
+	},
+	"mailer": {
+		"smtp_host": "mailcatcher",
+		"smtp_port": 1025,
+		"smtp_user": "",
+		"smtp_pass": "",
+		"smtp_from": "info@test.com",
+		"template_dir": "src/mails"
+	},
+	"server": {
+		"port": 3000,
+		"public_url": "http://localhost/static"
+	}
+}

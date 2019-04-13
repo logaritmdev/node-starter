@@ -39,7 +39,7 @@ export const server = new ApolloServer({
 			format.type = original.constructor.name
 
 			if (original instanceof ValidationError) {
-				format.field = original.field
+				format.keys = original.errors
 			}
 		}
 

@@ -25,6 +25,7 @@
     "@types/sequelize": "^4.27.39",
     "@types/swig-email-templates": "^5.0.0",
     "@types/uuid": "^3.4.4",
+    "@types/yup": "^0.26.12",
     "apollo-server-express": "^2.4.8",
     "bcrypt": "^3.0.4",
     "body-parser": "^1.18.3",
@@ -55,7 +56,8 @@
     "sequelize-typescript": "^0.6.5",
     "swig-email-templates": "^5.0.1",
     "uuid": "^3.3.2",
-    "winston": "^3.2.1"
+    "winston": "^3.2.1",
+    "yup": "^0.27.0"
   },
   "devDependencies": {
     "graphql-code-generator": "^0.18.0",

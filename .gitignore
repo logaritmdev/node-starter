@@ -3,3 +3,4 @@
 /logs/combined.log
 /log/node-app-info.log
 /log/node-app-error.log
+supervisord.pid

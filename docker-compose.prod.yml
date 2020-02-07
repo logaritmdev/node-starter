@@ -19,7 +19,7 @@ services:
 
   node1:
     restart: always
-    image: node:10.15.2
+    image: node:13.6.0
     volumes:
       - .:/app
       - ./log:/tmp/logs

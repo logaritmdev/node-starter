@@ -4,14 +4,12 @@ import { BooleanSchemaConstructor } from 'yup'
 import { DateSchemaConstructor } from 'yup'
 import { MixedSchemaConstructor } from 'yup'
 import { NumberSchemaConstructor } from 'yup'
-import { ObjectSchema } from 'yup'
 import { ObjectSchemaConstructor } from 'yup'
-import { Shape } from 'yup'
 import { StringSchemaConstructor } from 'yup'
 import { ValidationError as YUPValidationError } from 'yup'
-import { ValidationError } from '../errors/ValidationError'
-import { ValidationErrors } from '../errors/ValidationError'
-import { Context } from '../graphql'
+import { Context } from 'lib/graphql'
+import { FieldValidationErrors } from 'lib/errors/ValidationError'
+import { ValidationError } from 'lib/errors/ValidationError'
 
 /**
  * The validator builder.
@@ -36,74 +34,85 @@ export interface ValidatorBuilder {
 export abstract class Validator {
 
 	/**
+	 * The validator's context.
+	 * @property context
+	 * @since 1.0.0
+	 */
+	public context: Context
+
+	/**
+	 * @constructor
+	 * @since 1.0.0
+	 */
+	constructor(context: Context) {
+
+		this.context = context
+
+		yup.setLocale({
+
+			mixed: {
+				default: this.context.t('This field is invalid.'),
+				required: this.context.t('This field is required.'),
+			},
+
+			string: {
+				length: this.context.t('This field must be exactly ${length} characters.'),
+				min: this.context.t('This field must be at least ${min} characters.'),
+				max: this.context.t('This field must be at most ${max} characters.'),
+				matches: this.context.t('This field must match the following: "${regex}".'),
+				email: this.context.t('This field must be a valid email.'),
+				url: this.context.t('This field must be a valid URL.'),
+				trim: this.context.t('This field must be a trimmed string.'),
+				lowercase: this.context.t('This field must be a lowercase string.'),
+				uppercase: this.context.t('This field must be a upper case string.'),
+			},
+
+			number: {
+				min: this.context.t('This field must be greater than or equal to ${min}'),
+				max: this.context.t('This field must be less than or equal to ${max}'),
+				lessThan: this.context.t('This field must be less than ${less}'),
+				moreThan: this.context.t('This field must be greater than ${more}'),
+				positive: this.context.t('This field must be a positive number'),
+				negative: this.context.t('This field must be a negative number'),
+				integer: this.context.t('This field must be an integer'),
+			},
+
+			date: {
+				min: this.context.t('This field field must be later than ${min}'),
+				max: this.context.t('This field field must be at earlier than ${max}'),
+			},
+
+			array: {
+				min: this.context.t('This field field must have at least ${min} items'),
+				max: this.context.t('This field field must have less than or equal to ${max} items'),
+			},
+
+			object: {
+				noUnknown: this.context.t('This field field cannot have keys not specified in the object shape'),
+			}
+		})
+	}
+
+	/**
 	 * Builds the validator shecma.
 	 * @method build
 	 * @since 1.0.0
 	 */
-	abstract build(builder: ValidatorBuilder, context: Context): any
+	public abstract build(builder: ValidatorBuilder): any
 
 	/**
 	 * Validates the input using the schema.
 	 * @method validate
 	 * @since 1.0.0
 	 */
-	public async validate(input: any, context: Context) {
+	public async validate(input: any) {
 
 		try {
 
-			let shape = this.build(yup, context)
+			let shape = this.build(yup)
 			if (shape == null) {
 				return
 			}
-
-			yup.setLocale({
-
-				mixed: {
-					default: context.t('This field is invalid.'),
-					required: context.t('This field is required.'),
-				},
-
-				string: {
-					required: context.t('This field is required.'),
-					length: context.t('This field must be exactly ${length} characters.'),
-					min: context.t('This field must be at least ${min} characters.'),
-					max: context.t('This field must be at most ${max} characters.'),
-					matches: context.t('This field must match the following: "${regex}".'),
-					email: context.t('This field must be a valid email.'),
-					url: context.t('This field must be a valid URL.'),
-					trim: context.t('This field must be a trimmed string.'),
-					lowercase: context.t('This field must be a lowercase string.'),
-					uppercase: context.t('This field must be a upper case string.'),
-				},
-
-				number: {
-					required: context.t('This field is required.'),
-					min: context.t('This field must be greater than or equal to ${min}'),
-					max: context.t('This field must be less than or equal to ${max}'),
-					lessThan: context.t('This field must be less than ${less}'),
-					moreThan: context.t('This field must be greater than ${more}'),
-					positive: context.t('This field must be a positive number'),
-					negative: context.t('This field must be a negative number'),
-					integer: context.t('This field must be an integer'),
-				},
-
-				date: {
-					required: context.t('This field is required.'),
-					min: context.t('This field field must be later than ${min}'),
-					max: context.t('This field field must be at earlier than ${max}'),
-				},
-
-				array: {
-					required: context.t('This field is required.'),
-					min: context.t('This field field must have at least ${min} items'),
-					max: context.t('This field field must have less than or equal to ${max} items'),
-				},
-
-				object: {
-					required: context.t('This field is required.'),
-					noUnknown: context.t('This field field cannot have keys not specified in the object shape'),
-				}
-			})
 
 			yup
 				.object()
@@ -116,19 +125,35 @@ export abstract class Validator {
 
 			if (e instanceof YUPValidationError) {
 
-				let errors: ValidationErrors = {}
+				let fields: FieldValidationErrors = {}
 
 				for (let item of e.inner) {
-					errors[item.path] = item.message
+					fields[item.path] = item.message
 				}
 
-				throw new ValidationError(
-					context.t('Input validation failed'),
-					errors
+				return new ValidationError(
+					this.context.t('Validation failed'),
+					fields
 				)
 			}
 
-			throw new ValidationError(e.message)
+			return new ValidationError(e.message)
 		}
+
+		return null
+	}
+
+	/**
+	 * Convenience method to raise an error.
+	 * @method raise
+	 * @since 1.0.0
+	 */
+	public raise(error: string | null, fields: FieldValidationErrors = {}) {
+
+		if (error == null) {
+			error = this.context.t('Validation failed')
+		}
+
+		return new ValidationError(error, fields)
 	}
 }

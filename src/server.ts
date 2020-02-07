@@ -1,9 +1,9 @@
 import config from 'config'
 import express from 'express'
 import path from 'path'
-import { Database } from './lib/database'
-import { Logger } from './lib/logger'
-import { server } from './graphql'
+import { Database } from 'lib/database'
+import { Logger } from 'lib/logger'
+import { server as endpoint } from 'endpoint/main/server'
 
 //------------------------------------------------------------------------------
 // Errors
@@ -50,6 +50,6 @@ app.use(require('./express/auth').default)
 app.use(require('./express/locale').default)
 app.use(require('./express/logger').default)
 
-server.applyMiddleware({ app })
+endpoint.applyMiddleware({ app, cors: false })
 
 export default app

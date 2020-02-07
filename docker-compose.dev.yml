@@ -13,7 +13,7 @@ services:
       - node
 
   node:
-    image: node:10.15.2
+    image: node:13.6.0
     volumes:
       - node-sync:/app:nocopy
       - ./log:/tmp/logs
@@ -41,11 +41,12 @@ services:
     ports:
         - 1025:1025
         - 1080:1080
+
   phpmyadmin:
     restart: always
     image: phpmyadmin/phpmyadmin
     ports:
-      - 6085:80
+      - 6065:80
     environment:
       PMA_HOST: mysql
 

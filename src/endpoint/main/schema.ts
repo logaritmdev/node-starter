@@ -3,7 +3,7 @@ import { makeExecutableSchema } from 'graphql-tools'
 import { fileLoader } from 'merge-graphql-schemas'
 import { mergeResolvers } from 'merge-graphql-schemas'
 import { mergeTypes } from 'merge-graphql-schemas'
-import { RestrictedDirective } from './directives/restricted'
+import { RestrictedDirective } from 'endpoint/main/directives/restricted'
 
 const schema = makeExecutableSchema({
 

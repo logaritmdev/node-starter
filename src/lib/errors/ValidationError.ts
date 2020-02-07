@@ -1,11 +1,11 @@
-import { GraphQLError } from 'graphql'
+import { ApolloError } from 'apollo-server-express'
 
 /**
  * The field errors.
- * @class ValidationErrors
+ * @class FieldValidationErrors
  * @since 1.0.0
  */
-export type ValidationErrors = {
+export type FieldValidationErrors = {
 	[key: string]: string
 }
 
@@ -14,21 +14,20 @@ export type ValidationErrors = {
  * @class ValidationError
  * @since 1.0.0
  */
-export class ValidationError extends GraphQLError {
+export class ValidationError extends ApolloError {
 
 	/**
-	 * The field that failed to validate.
-	 * @property field
+	 * The error name.
+	 * @property name
 	 * @since 1.0.0
 	 */
-	public readonly errors?: ValidationErrors
+	readonly name: string = 'ValidationError'
 
 	/**
 	 * @constructor
 	 * @since 1.0.0
 	 */
-	constructor(message: string, errors?: ValidationErrors) {
-		super(message)
-		this.errors = errors
+	constructor(message: string, fields?: FieldValidationErrors) {
+		super(message, 'INPUT_VALIDATION_ERROR', { fields })
 	}
 }

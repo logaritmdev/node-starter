@@ -2,21 +2,52 @@
 # Inputs
 #===============================================================================
 
-input AuthenticateMeInput {
+#
+# @input UserInput
+#
+
+input UserInput {
+	userId: ID!
+}
+
+#
+# @input UsersInput
+#
+
+input UsersInput {
+	limit: Int
+	after: Int
+	order: String
+	query: String
+}
+
+#
+# @input AuthenticateUserInput
+#
+
+input AuthenticateUserInput {
 	email: String!
 	passw: String!
 }
+
 
 #===============================================================================
 # Types
 #===============================================================================
 
-type Me {
+type User {
+
 	id: ID!
-	email: String
-	sessionToken: String
-	sessionStartedAt: Timestamp
-	sessionExpiresAt: Timestamp
+	role: String!
+	firstname: String!
+	lastname: String!
+	phone: String!
+	email: String!
+	image: String
+
+	# Metas
+	createdAt: Timestamp!
+	updatedAt: Timestamp!
 }
 
 #===============================================================================
@@ -26,34 +57,34 @@ type Me {
 type Query {
 
 	#
-	# @query me
+	# @query user
 	# @since 1.0.0
 	#
 
-	me: Me
+	user(input: UserInput!): User
+	@restricted
+
+	#
+	# @query users
+	# @since 1.0.0
+	#
+
+	users(input: UsersInput!): [User!]!
 	@restricted
 
 }
 
 #===============================================================================
-# Mutations
+# Mutation
 #===============================================================================
 
 type Mutation {
 
 	#
-	# @mutation authenticateMe
+	# @mutation authenticateUser
 	# @since 1.0.0
 	#
 
-	authenticateMe(input: AuthenticateMeInput!): Me
-
-	#
-	# @mutation invalidateMe
-	# @since 1.0.0
-	#
-
-	invalidateMe: Boolean!
-	@restricted
+	authenticateUser(input: AuthenticateUserInput): Session
 
 }

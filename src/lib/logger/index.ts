@@ -27,7 +27,7 @@ export class Logger {
 	 * @method e
 	 * @since 1.0.0
 	 */
-	public static e(tag: string, message: string, req?: Request, err?: Error) {
+	public static e(tag: string, message: string, req?: Request, err?: any) {
 		return this.main.log('error', tag, message, req, err)
 	}
 
@@ -36,7 +36,7 @@ export class Logger {
 	 * @method w
 	 * @since 1.0.0
 	 */
-	public static w(tag: string, message: string, req?: Request, err?: Error) {
+	public static w(tag: string, message: string, req?: Request, err?: any) {
 		return this.main.log('warn', tag, message, req, err)
 	}
 
@@ -45,7 +45,7 @@ export class Logger {
 	 * @method e
 	 * @since 1.0.0
 	 */
-	public static i(tag: string, message: string, req?: Request, err?: Error) {
+	public static i(tag: string, message: string, req?: Request, err?: any) {
 		return this.main.log('info', tag, message, req, err)
 	}
 
@@ -54,7 +54,7 @@ export class Logger {
 	 * @method v
 	 * @since 1.0.0
 	 */
-	public static v(tag: string, message: string, req?: Request, err?: Error) {
+	public static v(tag: string, message: string, req?: Request, err?: any) {
 		return this.main.log('verbose', tag, message, req, err)
 	}
 
@@ -63,7 +63,7 @@ export class Logger {
 	 * @method d
 	 * @since 1.0.0
 	 */
-	public static d(tag: string, message: string, req?: Request, err?: Error) {
+	public static d(tag: string, message: string, req?: Request, err?: any) {
 		return this.main.log('debug', tag, message, req, err)
 	}
 
@@ -115,7 +115,7 @@ export class Logger {
 	 * @method e
 	 * @since 1.0.0
 	 */
-	public e(tag: string, message: string, req?: Request, err?: Error) {
+	public e(tag: string, message: string, req?: Request, err?: any) {
 		return this.log('error', tag, message, req, err)
 	}
 
@@ -124,7 +124,7 @@ export class Logger {
 	 * @method w
 	 * @since 1.0.0
 	 */
-	public w(tag: string, message: string, req?: Request, err?: Error) {
+	public w(tag: string, message: string, req?: Request, err?: any) {
 		return this.log('warn', tag, message, req, err)
 	}
 
@@ -133,7 +133,7 @@ export class Logger {
 	 * @method e
 	 * @since 1.0.0
 	 */
-	public i(tag: string, message: string, req?: Request, err?: Error) {
+	public i(tag: string, message: string, req?: Request, err?: any) {
 		return this.log('info', tag, message, req, err)
 	}
 
@@ -142,7 +142,7 @@ export class Logger {
 	 * @method v
 	 * @since 1.0.0
 	 */
-	public v(tag: string, message: string, req?: Request, err?: Error) {
+	public v(tag: string, message: string, req?: Request, err?: any) {
 		return this.log('verbose', tag, message, req, err)
 	}
 
@@ -151,7 +151,7 @@ export class Logger {
 	 * @method d
 	 * @since 1.0.0
 	 */
-	public d(tag: string, message: string, req?: Request, err?: Error) {
+	public d(tag: string, message: string, req?: Request, err?: any) {
 		return this.log('debug', tag, message, req, err)
 	}
 
@@ -164,13 +164,19 @@ export class Logger {
 	 * @since 1.0.0
 	 * @hidden
 	 */
-	private log(level: string, tag: string, message: string, req?: Request, err?: Error) {
+	private log(level: string, tag: string, message: string, req?: Request, err?: any) {
 
 		if (tag) message = '[TAG: ' + tag + '] ' + message
 		if (req) message = '[REQ: ' + req.guid + '] ' + message
 
 		if (err) {
-			message = message + ' Error: ' + err.stack
+
+			if (err.stack) {
+				message += ' Error: ' + err.stack
+			} else {
+				message += ' Error: ' + err.message
+			}
+
 		}
 
 		this.winston.log({ level, message })

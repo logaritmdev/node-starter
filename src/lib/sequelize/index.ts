@@ -1,224 +1,305 @@
-import { keyBy } from 'lodash'
-import { Dictionary } from 'lodash'
-import { AllowNull as SequelizeAllowNull } from 'sequelize-typescript'
-import { Column as SequelizeColumn } from 'sequelize-typescript'
+import { merge } from 'lodash'
+import { BelongsToOptions } from 'sequelize'
+import { FindOptions } from 'sequelize'
+import { HasManyOptions } from 'sequelize'
+import { HasOneOptions } from 'sequelize'
+import { ModelAttributeColumnOptions } from 'sequelize'
+import { AllowNull } from 'sequelize-typescript'
+import { BelongsTo } from 'sequelize-typescript'
+import { BelongsToMany } from 'sequelize-typescript'
+import { BelongsToManyOptions } from 'sequelize-typescript'
+import { Column } from 'sequelize-typescript'
 import { DataType } from 'sequelize-typescript'
-import { IFindOptions } from 'sequelize-typescript/lib/interfaces/IFindOptions'
-import { Model } from 'sequelize-typescript'
+import { ForeignKey } from 'sequelize-typescript'
+import { HasMany } from 'sequelize-typescript'
+import { HasOne } from 'sequelize-typescript'
+import { Model as BaseModel } from 'sequelize-typescript'
+import { ModelClassGetter } from 'sequelize-typescript'
+import { PrimaryKey } from 'sequelize-typescript'
+import { ThroughOptions } from 'sequelize-typescript'
+import { findIn } from './private'
+import { groupAllBy } from './private'
+import { groupOneBy } from './private'
+import { setFindAfter } from './private'
+import { setFindLimit } from './private'
+import { setFindOrder } from './private'
+import { setFindQuery } from './private'
 
 /**
- * @type NonAbstract<T>
+ * The base sequelize model.
+ * @class Model
  * @since 1.0.0
  */
-type NonAbstract<T> = {
-    [P in keyof T]: T[P]
+export class Model<T = any> extends BaseModel<T> {
+
+	/**
+	 * Find records using common querying values
+	 * @function findAllByPrimaryKeys
+	 * @since 1.0.0
+	 */
+	public static findAllBy<T extends Model<T>>(
+
+		this: { new(): T } & typeof Model,
+		opts: FindOptions,
+		order?: string | null,
+		limit?: number | null,
+		after?: number | null,
+		query?: string | null,
+		field?: string | Array<string> | null
+
+	) {
+
+		let options: FindOptions = {}
+
+		merge(options, opts)
+
+		if (typeof order == 'string') setFindOrder(options, order)
+		if (typeof limit == 'number') setFindLimit(options, limit)
+		if (typeof after == 'number') setFindAfter(options, after)
+
+		if (query && field) {
+			setFindQuery(options, query, field)
+		}
+
+		return this.findAll(options)
+	}
+
+	/**
+	 * Convenience loader function to load using a primary key.
+	 * @function loadAllByPrimaryKeys
+	 * @since 1.0.0
+	 */
+	public static loadAllByPrimaryKeys<T extends Model<T>>(this: { new(): T } & typeof Model, ids: ReadonlyArray<ID>, key: string = 'id', opts: Partial<FindOptions> = {}): Promise<Array<T>> {
+		return findIn(this, key, ids, opts).then(rows => groupOneBy(rows, key, ids))
+	}
+
+	/**
+	 * Convenience loader function to load using a foreign key.
+	 * @function loadAllByForeignKeys
+	 * @since 1.0.0
+	 */
+	public static loadAllByForeignKeys<T extends Model<T>>(this: { new(): T } & typeof Model, ids: ReadonlyArray<ID>, key: string = 'id', opts: Partial<FindOptions> = {}): Promise<Array<Array<T>>> {
+		return findIn(this, key, ids, opts).then(rows => groupAllBy(rows, key, ids))
+	}
 }
 
 /**
- * @type Constructor<T>
+ * Sequelize column decorator
+ * @function column
  * @since 1.0.0
  */
-type Constructor<T> = (new () => T)
+export function column(type: any, options: Partial<ModelAttributeColumnOptions> = {}): Function {
 
-/**
- * @type NonAbstractTypeOfModel<T
- * @since 1.0.0
- */
-type NonAbstractTypeOfModel<T> = Constructor<T> & NonAbstract<typeof Model>
+	let initial: Partial<ModelAttributeColumnOptions> = {
+		allowNull: false
+	}
 
-/**
- * @type FindAllMappedOptions
- * @since 1.0.0
- */
-interface FindAllMappedOptions<T> {
-    include?: any
+	return function (target: any, property: string): void {
+		Column({
+			...initial,
+			...options,
+			type
+		})(target, property)
+	}
 }
 
 /**
- * @type FindAllMappedOptions
+ * Sequelize foreignKey decorator.
+ * @function foreignKey
  * @since 1.0.0
  */
-interface FindOneMappedOptions<T> {
-    include?: any
-}
+export function foreignKey(model: ModelClassGetter, options: Partial<ModelAttributeColumnOptions> = {}) {
 
-//------------------------------------------------------------------------------
-// Decorators
-//------------------------------------------------------------------------------
+	let initial: Partial<ModelAttributeColumnOptions> = {
+		allowNull: false
+	}
 
-/**
- * Convenience function to create a non-nullable column of specified type.
- * @function Column
- * @since 1.0.0
- */
-export function Column(type: any, defaultValue?: any): Function {
-    return function (target: any, propertyName: string): void {
-        SequelizeColumn({ type: type, defaultValue: defaultValue, allowNull: false })(target, propertyName)
-    }
-}
+	return function (target: any, property: string): void {
 
-/**
- * Convenience function to create a nullable column.
- * @function Nullable
- * @since 1.0.0
- */
-export function Nullable(target: any, propertyName: string): void {
-    SequelizeAllowNull(true)(target, propertyName)
+		Column({
+			...initial,
+			...options,
+			type: DataType.INTEGER
+		})(target, property)
+
+		ForeignKey(model)(target, property)
+	}
 }
 
 /**
- * Convenience function to create a trashedAt column.
- * @function TrashedAt
+ * Sequelize primaryKey decorator.
+ * @function primaryKey
  * @since 1.0.0
  */
-export function TrashedAt(target: any, propertyName: string): void {
-    SequelizeColumn({ type: DataType.DATE, defaultValue: null, allowNull: true })(target, propertyName)
+export function primaryKey(target: any, property: string) {
+	PrimaryKey(target, property)
 }
 
-//------------------------------------------------------------------------------
-// Functions
-//------------------------------------------------------------------------------
 
 /**
- * Convenience function to find records with order and limit.
- * @method findSome
+ * Sequelize nullable decorator
+ * @function nullable
  * @since 1.0.0
  */
-export function findSome<T extends Model<T>, R>(M: NonAbstractTypeOfModel<T>, options: IFindOptions<T>, order?: string | null, limit?: string | null) {
-
-    if (order) {
-
-        let orders = order.replace(/\s+/, '').split(':')
-
-        if (orders[1] == null) {
-            orders[1] = 'ASC'
-        }
-
-        if (options) {
-            options.order = [orders]
-        }
-    }
-
-    if (limit) {
-
-        let limits = limit.replace(/\s+/, '').split(',')
-
-        if (limits[1] == null) {
-            limits[1] = '0'
-        }
-
-        if (options) {
-            options.limit = Number(limits[0])
-            options.offset = Number(limits[1])
-        }
-    }
-
-    return M.all(options)
+export function nullable(target: any, property: string): void {
+	AllowNull(true)(target, property)
 }
 
 /**
- * Convenience method to find rows mapped to a multiple values.
- * @function findAllMapped
+ * Sequelize belongsTo decorator.
+ * @function belongsTo
  * @since 1.0.0
  */
-export function findAllMapped<T extends Model<T>, R>(M: NonAbstractTypeOfModel<T>, records: ReadonlyArray<R>, primaryKey: string, foreignKey: string, opts: FindAllMappedOptions<T> = {}): Promise<Array<Array<T>>> {
+export function belongsTo(model: ModelClassGetter, options: BelongsToOptions = {}) {
 
-    let ids = records.map((record: any) => record[primaryKey] as string)
+	let initial: Partial<BelongsToOptions> = {
+		onDelete: 'CASCADE',
+		onUpdate: 'CASCADE'
+	}
 
-    let options: any = {
-
-        where: {
-            [foreignKey]: ids
-        },
-
-        include: opts.include,
-    }
-
-    return new Promise<Array<Array<T>>>(success => M.all(options).then(data => group(ids, data, primaryKey, foreignKey)).then(success))
+	return function (target: any, property: string): void {
+		BelongsTo(model, {
+			...initial,
+			...options
+		})(target, property)
+	}
 }
 
 /**
- * Convenience method to find rows mapped to a single values.
- * @function findOneMapped
+ * Sequelize belongsToMany decorator.
+ * @function belongsToMany
  * @since 1.0.0
  */
-export function findOneMapped<T extends Model<T>, R>(M: NonAbstractTypeOfModel<T>, records: ReadonlyArray<R>, primaryKey: string, foreignKey: string, opts: FindOneMappedOptions<T> = {}): Promise<Array<T>> {
+export function belongsToMany(model: ModelClassGetter, through: ModelClassGetter | string | ThroughOptions, options: Partial<BelongsToManyOptions> = {}) {
 
-    let ids = records.map((record: any) => record[foreignKey] as string)
+	let initial: Partial<BelongsToManyOptions> = {
+		onDelete: 'CASCADE',
+		onUpdate: 'CASCADE'
+	}
 
-    let options: any = {
-
-        where: {
-            [primaryKey]: ids
-        },
-
-        include: opts.include,
-    }
-
-    return new Promise<Array<T>>((success, failure) => M.all(options).then(data => map(ids, data, primaryKey)).then(res => { success(res) }))
-}
-
-//------------------------------------------------------------------------------
-// Private API
-//------------------------------------------------------------------------------
-
-/**
- * Map records to their specified keys.
- * @function map
- * @since 1.0.0
- */
-function map<T extends any>(keys: ReadonlyArray<string | number>, records: ReadonlyArray<T>, primaryKey: string = "id") {
-
-    let map = keyBy(
-        records,
-        primaryKey
-    )
-
-    return keys.map(key => map[key])
+	return function (target: any, property: string): void {
+		BelongsToMany(model, {
+			...initial,
+			...options,
+			through
+		})(target, property)
+	}
 }
 
 /**
- * Groups the batched result and map them property
- * @function batch
+ * Sequelize hasOne decorator.
+ * @function hasOne
  * @since 1.0.0
  */
-function group<T extends any>(keys: Array<string>, records: Array<T>, primaryKey: string, foreignKey: string) {
+export function hasOne(model: ModelClassGetter, options: Partial<HasOneOptions> = {}) {
 
-    let result: Dictionary<Array<T>> = {}
+	let initial: Partial<HasOneOptions> = {
+		onDelete: 'CASCADE',
+		onUpdate: 'CASCADE'
+	}
 
-    for (let record of records) {
-
-        let key = record[foreignKey]
-        let arr = result[key]
-
-        if (arr == null) {
-            arr = result[key] = []
-        }
-
-        arr.push(record)
-    }
-
-    return keys.map(key => result[key] || [])
+	return function (target: any, property: string): void {
+		HasOne(model, {
+			...initial,
+			...options
+		})(target, property)
+	}
 }
 
-//------------------------------------------------------------------------------
-// Default Exports
-//------------------------------------------------------------------------------
+/**
+ * Sequelize hasMany decorator.
+ * @function hasMany
+ * @since 1.0.0
+ */
+export function hasMany(model: ModelClassGetter, options: Partial<HasManyOptions> = {}) {
 
-export { Model } from 'sequelize-typescript'
+	let initial: Partial<HasManyOptions> = {
+		onDelete: 'CASCADE',
+		onUpdate: 'CASCADE'
+	}
+
+	return function (target: any, property: string): void {
+		HasMany(model, {
+			...initial,
+			...options
+		})(target, property)
+	}
+}
+
+/**
+ * @type Type
+ * @since 1.0.0
+ */
 export { DataType as Type } from 'sequelize-typescript'
-export { BeforeCreate } from 'sequelize-typescript'
-export { BeforeUpdate } from 'sequelize-typescript'
-export { Table } from 'sequelize-typescript'
-export { Unique } from 'sequelize-typescript'
-export { AllowNull } from 'sequelize-typescript'
-export { BelongsTo } from 'sequelize-typescript'
-export { HasMany } from 'sequelize-typescript'
-export { ForeignKey } from 'sequelize-typescript'
-export { CreatedAt } from 'sequelize-typescript'
-export { UpdatedAt } from 'sequelize-typescript'
-export { DeletedAt } from 'sequelize-typescript'
-export { Sequelize } from 'sequelize-typescript'
-export { DefaultScope } from 'sequelize-typescript'
-export { Scopes } from 'sequelize-typescript'
-export { IFindOptions }
+
+/**
+ * @function table
+ * @since 1.0.0
+ */
+export { Table as table } from 'sequelize-typescript'
+
+/**
+ * @function unique
+ * @since 1.0.0
+ */
+export { Unique as unique } from 'sequelize-typescript'
+
+/**
+ * @function createdAt
+ * @since 1.0.0
+ */
+export { CreatedAt as createdAt } from 'sequelize-typescript'
+
+/**
+ * @function updatedAt
+ * @since 1.0.0
+ */
+export { UpdatedAt as updatedAt } from 'sequelize-typescript'
+
+/**
+ * @function deletedAt
+ * @since 1.0.0
+ */
+export { DeletedAt as deletedAt } from 'sequelize-typescript'
+
+/**
+ * @function onBeforeValidate
+ * @since 1.0.0
+ */
+export { BeforeValidate as onBeforeValidate } from 'sequelize-typescript'
+
+/**
+ * @function onBeforeCreate
+ * @since 1.0.0
+ */
+export { BeforeCreate as onBeforeCreate } from 'sequelize-typescript'
+
+/**
+ * @function onBeforeUpdate
+ * @since 1.0.0
+ */
+export { BeforeUpdate as onBeforeUpdate } from 'sequelize-typescript'
+
+/**
+ * @function onBeforeDestroy
+ * @since 1.0.0
+ */
+export { BeforeDestroy as onBeforeDestroy } from 'sequelize-typescript'
+
+/**
+ * @function defaultScope
+ * @since 1.0.0
+ */
+export { DefaultScope as defaultScope } from 'sequelize-typescript'
+
+/**
+ * @function scope
+ * @since 1.0.0
+ */
+export { Scopes as scopes } from 'sequelize-typescript'
+
+/**
+ * @enum Op
+ * @since 1.0.0
+ */
+export { Op } from 'sequelize'

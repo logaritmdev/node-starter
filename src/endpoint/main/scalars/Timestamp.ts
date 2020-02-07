@@ -1,5 +1,5 @@
-import { GraphQLScalarType } from 'graphql'
-import { Kind } from 'graphql/language'
+import { GraphQLScalarType } from 'endpoint'
+import { Kind } from 'endpoint/language'
 
 export default {
 

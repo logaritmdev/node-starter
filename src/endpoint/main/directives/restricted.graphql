@@ -1,0 +1,3 @@
+directive @restricted(
+	role: String = "any"
+) on FIELD_DEFINITION

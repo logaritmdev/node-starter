@@ -1,11 +1,11 @@
-import { get } from 'dot-prop'
-import { set } from 'dot-prop'
+import DataLoader from 'dataloader'
+import fs from 'fs'
+import path from 'path'
 import { Request } from 'express'
 import { Response } from 'express'
-import { createBatchResolver } from 'graphql-resolve-batch'
 import { Dictionary } from 'lodash'
-import { Client } from '../../models/Client'
-import { Session } from '../../models/Session'
+import { Session } from 'models/Session'
+import { User } from 'models/User'
 
 /**
  * The GraphQL resolver context.
@@ -13,10 +13,15 @@ import { Session } from '../../models/Session'
  * @since 1.0.0
  */
 export interface Context {
+
 	req: Request
 	res: Response
-	cache: Dictionary<any>
+
 	t: (msg: string) => string
+
+	loader: {
+		user: DataLoader<ID, User>,
+	}
 }
 
 /**
@@ -29,38 +34,36 @@ export interface AuthenticatedContext extends Context {
 }
 
 /**
- * Wrapper around the createBatchResolver function
- * @function batch
+ * Returns an object of resolvers from the file system.
+ * @function resolverLoader
  * @since 1.0.0
  */
-export type BatchedResolver<T, C> = (records: ReadonlyArray<T>, args: any, context: C) => Promise<any>
+export function resolverLoader(dir: string) {
 
-/**
- * Wrapper around the createBatchResolver function
- * @function batched
- * @since 1.0.0
- */
-export function batch(keys: Array<string>, resolvers: any) {
+	let resolvers: Dictionary<Function> = {}
 
-	for (let path of keys) {
+	fs.readdirSync(dir).forEach(name => {
 
-		var callback = get(resolvers, path)
-		if (callback == null) {
-			console.error('Cannot batch resolver ' + path + '. The path does not exist.')
-			continue
+		let file = path.join(dir, name)
+
+		if (path.extname(file) != '.ts' &&
+			path.extname(file) != '.js') {
+			return
 		}
 
-		set(resolvers, path, batched(callback))
-	}
+		let func = name
+		func = func.replace(/\.ts$/, '')
+		func = func.replace(/\.js$/, '')
+
+		let exported = require(file)
+
+		let resolver = exported[func]
+		if (resolver == null) {
+			throw new Error(`File at ${file} does not export a resolver named ${func}.`)
+		}
+
+		resolvers[func] = resolver
+	})
 
 	return resolvers
-}
-
-/**
- * Wrapper around the createBatchResolver function
- * @function batched
- * @since 1.0.0
- */
-function batched<T, C>(resolver: BatchedResolver<T, C>) {
-	return createBatchResolver<T, any, any, C>((records, args, context) => resolver(records, args, context))
 }

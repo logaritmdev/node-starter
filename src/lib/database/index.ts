@@ -1,6 +1,16 @@
-import cls from 'continuation-local-storage'
+import cls from 'cls-hooked'
+import { QueryOptionsWithType } from 'sequelize'
+import { QueryTypes } from 'sequelize'
 import { Transaction } from 'sequelize'
 import { Sequelize } from 'sequelize-typescript'
+import { SequelizeOptions } from 'sequelize-typescript'
+
+/**
+ * The cls namespace.
+ * @const namespace
+ * @since 1.0.0
+ */
+export const sequelize = cls.createNamespace('sequelize')
 
 /**
  * A wrapper around the sequelize database.
@@ -8,6 +18,47 @@ import { Sequelize } from 'sequelize-typescript'
  * @since 1.0.0
  */
 export class Database {
+
+	//--------------------------------------------------------------------------
+	// Static
+	//--------------------------------------------------------------------------
+
+	/**
+	 * All database instances.
+	 * @property instances
+	 * @since 1.0.0
+	 */
+	public static instances: Array<Database> = []
+
+	/**
+	 * Performs a transaction.
+	 * @method transaction
+	 * @since 1.0.0
+	 */
+	public static transaction<T>(callback: ((T: Transaction) => Promise<T>)) {
+
+		let database = this.instances[this.instances.length - 1]
+		if (database == null) {
+			throw new Error('No database connection to perform transaction.')
+		}
+
+		return database.transaction(callback)
+	}
+
+	/**
+	 * Performs a query.
+	 * @method transaction
+	 * @since 1.0.0
+	 */
+	public static query<T extends object>(sql: string | { query: string; values: unknown[] }, options: QueryOptionsWithType<QueryTypes.SELECT>): Promise<T[]> {
+
+		let database = this.instances[this.instances.length - 1]
+		if (database == null) {
+			throw new Error('No database connection to perform transaction.')
+		}
+
+		return database.query(sql, options)
+	}
 
 	//--------------------------------------------------------------------------
 	// Properties
@@ -71,7 +122,7 @@ export class Database {
 		this.username = username
 		this.password = password
 
-		Sequelize.useCLS(cls.createNamespace('sequelize'))
+		Database.instances.push(this)
 	}
 
 	/**
@@ -88,15 +139,14 @@ export class Database {
 			`)
 		}
 
-		let options = {
+		let options: SequelizeOptions = {
 			host: this.host,
 			database: this.database,
 			username: this.username,
 			password: this.password,
-			dialect: 'mysql',
-			logging: false,
 			modelPaths: [this.path],
-			operatorsAliases: false,
+			logging: false,
+			dialect: 'mysql',
 			dialectOptions: {
 				charset: 'utf8'
 			}
@@ -105,13 +155,17 @@ export class Database {
 		this.connection = new Sequelize(options)
 		this.connection.sync()
 
-		process.on('SIGINT', () => {
+		process.on('exit', () => {
 
 			if (this.connection) {
 				this.connection.close()
 				this.connection = null
 			}
 
+			let index = Database.instances.indexOf(this)
+			if (index > -1) {
+				Database.instances.splice(index, 1)
+			}
 		})
 
 		return this
@@ -128,6 +182,11 @@ export class Database {
 			this.connection.close()
 		}
 
+		let index = Database.instances.indexOf(this)
+		if (index > -1) {
+			Database.instances.splice(index, 1)
+		}
+
 		return this
 	}
 
@@ -136,12 +195,34 @@ export class Database {
 	 * @method transaction
 	 * @since 1.0.0
 	 */
-	public transaction(callback: ((t: Transaction) => void)) {
+	public async transaction<T>(callback: ((t: Transaction) => Promise<T>)) {
 
-		if (this.connection) {
-			this.connection.transaction().then(callback as any)
+		let connection = this.connection
+		if (connection == null) {
+			throw new Error('Unable to begin transaction on disconnected database')
 		}
 
-		return this
+		return connection.transaction(callback)
+	}
+
+	/**
+	 * Performs a query.
+	 * @method transaction
+	 * @since 1.0.0
+	 */
+	public query<T extends object>(sql: string | { query: string; values: unknown[] }, options: QueryOptionsWithType<QueryTypes.SELECT>): Promise<T[]> {
+
+		let connection = this.connection
+		if (connection == null) {
+			throw new Error('Unable to begin transaction on disconnected database')
+		}
+
+		return connection.query(sql, options)
 	}
 }
+
+/**
+ * Sets the cls namespace. This does not work for me but its still
+ * there just in case.
+ */
+Sequelize.useCLS(sequelize)

@@ -24,7 +24,7 @@
     "@types/uuid": "^3.4.4",
     "@types/yup": "^0.26.12",
     "apollo-server-express": "^2.4.8",
-    "bcrypt": "^3.0.4",
+    "bcrypt": "^5.0.0",
     "body-parser": "^1.18.3",
     "cls-hooked": "^4.2.2",
     "config": "^3.0.1",
